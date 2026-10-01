@@ -1,0 +1,21 @@
+name: No cross-repository closing
+description: Fails when the pull request description or a commit message uses "Closes", "Fixes" or "Resolves" with another repository's issue.
+
+inputs:
+  token:
+    description: Token that can read the pull request's commits.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+        # Passed as an environment variable, never interpolated into a command,
+        # so the untrusted pull request body cannot inject shell.
+        PR_BODY: ${{ github.event.pull_request.body }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
