@@ -13,3 +13,8 @@ def proposal_numbers(filenames):
 def acceptance_comment(pr, merged_at):
     """The comment closing an accepted proposal's issue; `merged_at` is the merge's ISO 8601 timestamp."""
     return f"Accepted on {merged_at[:10]} in #{pr}."
+
+
+def has_acceptance_comment(comment_bodies, pr):
+    """Whether one of `comment_bodies` already records the acceptance in pull request `pr`."""
+    return any(body.startswith("Accepted on ") and body.rstrip().endswith(f"in #{pr}.") for body in comment_bodies)
