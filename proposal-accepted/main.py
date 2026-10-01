@@ -3,7 +3,7 @@
 import os
 
 from lib.github_api import GitHub, GitHubError
-from lib.proposals import proposal_numbers
+from lib.proposals import acceptance_comment, proposal_numbers
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
             print(f"#{n} is not labelled proposal; skipped.")
             continue
         if issue["state"] == "open":
-            github.post(f"/repos/{repo}/issues/{n}/comments", {"body": f"Accepted in #{pr}."})
+            github.post(f"/repos/{repo}/issues/{n}/comments", {"body": acceptance_comment(pr, os.environ["MERGED_AT"])})
             github.patch(f"/repos/{repo}/issues/{n}", {"state": "closed", "state_reason": "completed"})
         if not issue["locked"]:
             try:

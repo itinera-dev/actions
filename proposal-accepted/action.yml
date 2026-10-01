@@ -14,5 +14,6 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
         REPO: ${{ github.repository }}
         PR: ${{ github.event.pull_request.number }}
+        MERGED_AT: ${{ github.event.pull_request.merged_at }}
         PYTHONPATH: ${{ github.action_path }}/..
       run: python3 "$GITHUB_ACTION_PATH/main.py"
