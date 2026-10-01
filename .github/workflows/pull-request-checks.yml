@@ -1,0 +1,28 @@
+name: Pull request checks
+
+# This repository checks its own pull requests with the actions as they are on
+# the pull request's branch, so a change is exercised before it is released.
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  has-issue:
+    name: linked to an open issue with the required labels
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./pr-has-issue
+
+  no-cross-repo-closing:
+    name: no cross-repository closing keywords
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./no-cross-repo-closing

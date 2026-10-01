@@ -1,0 +1,27 @@
+name: Pull request has an issue
+description: Fails unless the pull request is linked to an open issue in its own repository, with the labels its profile requires.
+
+inputs:
+  profile:
+    description: >-
+      Which rules apply. "default": any open issue. "spec": a pull request adding
+      proposals/NNNN-*.md must be linked to issue NNNN labelled "proposal" and
+      "status: ready"; any other must be linked to an issue labelled "process",
+      "spec defect" or "proposal". "implementation": a linked "implements-proposal"
+      issue must not still be "waiting for spec".
+    default: default
+  token:
+    description: Token that can read the pull request and its issues.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PROFILE: ${{ inputs.profile }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
