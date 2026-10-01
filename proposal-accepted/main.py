@@ -3,7 +3,7 @@
 import os
 
 from lib.github_api import GitHub, GitHubError
-from lib.proposals import acceptance_comment, proposal_numbers
+from lib.proposals import acceptance_comment, has_acceptance_comment, proposal_numbers
 
 
 def main():
@@ -21,8 +21,11 @@ def main():
         if "proposal" not in {label["name"] for label in issue["labels"]}:
             print(f"#{n} is not labelled proposal; skipped.")
             continue
-        if issue["state"] == "open":
+        # "Closes #N" in the pull request usually closes the issue before this runs.
+        bodies = [c["body"] for c in github.get_all(f"/repos/{repo}/issues/{n}/comments")]
+        if not has_acceptance_comment(bodies, pr):
             github.post(f"/repos/{repo}/issues/{n}/comments", {"body": acceptance_comment(pr, os.environ["MERGED_AT"])})
+        if issue["state"] == "open":
             github.patch(f"/repos/{repo}/issues/{n}", {"state": "closed", "state_reason": "completed"})
         if not issue["locked"]:
             try:
