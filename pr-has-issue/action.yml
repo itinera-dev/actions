@@ -1,17 +1,27 @@
 name: Pull request has an issue
-description: Fails unless the pull request is linked to an open issue in its own repository, with the labels its profile requires.
+description: Fails unless the pull request closes or refers to an open issue in its own repository, with the labels and companion changes its profile requires.
 
 inputs:
   profile:
     description: >-
-      Which rules apply. "default": any open issue. "spec": a pull request adding
-      proposals/NNNN-*.md must be linked to issue NNNN labelled "proposal" and
-      "status: ready"; any other must be linked to an issue labelled "process",
-      "spec defect" or "proposal". "implementation": a linked "implements-proposal"
-      issue must not still be "waiting for spec".
+      Which rules apply. "default": any open issue, closed with "Closes #N" or
+      referred to with "Refs #N". "spec": a pull request adding proposals/NNNN-*.md
+      must close issue NNNN, labelled "proposal" and "status: ready", and the
+      conformance issue "Cases for spec#NNNN" must be closed; any other must be
+      linked to an issue labelled "process", "spec defect" or "proposal".
+      "implementation": a linked "implements-proposal" issue must not be "waiting
+      for spec", and closing it must add its proposal to conformance.json (and the
+      reverse). "conformance": a "waiting for spec" issue is accepted once its spec
+      proposal is "status: ready" or accepted.
     default: default
+  spec-repo:
+    description: The spec repository, owner/name. Defaults to the "spec" repository of the same owner.
+    default: ""
+  conformance-repo:
+    description: The conformance repository, owner/name. Defaults to the "conformance" repository of the same owner.
+    default: ""
   token:
-    description: Token that can read the pull request and its issues.
+    description: Token that can read the pull request, its issues, and the spec and conformance repositories.
     default: ${{ github.token }}
 
 runs:
@@ -21,7 +31,14 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.token }}
         PROFILE: ${{ inputs.profile }}
+        SPEC_REPO: ${{ inputs.spec-repo }}
+        CONFORMANCE_REPO: ${{ inputs.conformance-repo }}
         REPO: ${{ github.repository }}
         PR: ${{ github.event.pull_request.number }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        # Passed as an environment variable, never interpolated into a command,
+        # so the untrusted pull request body cannot inject shell.
+        PR_BODY: ${{ github.event.pull_request.body }}
         PYTHONPATH: ${{ github.action_path }}/..
       run: python3 "$GITHUB_ACTION_PATH/main.py"
