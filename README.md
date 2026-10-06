@@ -1,6 +1,6 @@
 # itinera-dev/actions
 
-Shared GitHub Actions used by every itinera-dev repository: the pull request checks and the proposal automation.
+Shared GitHub Actions used by every itinera-dev repository: the pull request checks, the proposal automation and the conformance runs.
 
 Every action is a folder holding an `action.yml` that only declares inputs and runs one command, and a Python entry point. The logic lives in the importable `lib/` package, written for the Python standard library only, and is covered by the tests under `tests/`. Repositories use a released version, for example `itinera-dev/actions/pr-has-issue@v1`.
 

@@ -1,0 +1,39 @@
+name: Run conformance
+description: >-
+  Runs the conformance cases pinned in conformance.json with the language's runner, after checking the
+  scenarios excluded as impossible to express, and uploads the report.
+
+inputs:
+  command:
+    description: >-
+      The command that starts the language's runner. It receives ITINERA_CONFORMANCE_CASES,
+      ITINERA_CONFORMANCE_TAGS and ITINERA_CONFORMANCE_REPORT. Not run while conformance.json lists no proposals.
+    required: true
+  report-dir:
+    description: The directory the report is written to, holding cucumber.json and exclusions.json.
+    default: conformance-report/
+  conformance-repo:
+    description: The conformance repository, owner/name. Defaults to the "conformance" repository of the same owner.
+    default: ""
+  token:
+    description: Token that can read the conformance repository.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        COMMAND: ${{ inputs.command }}
+        REPORT_DIR: ${{ inputs.report-dir }}
+        CONFORMANCE_REPO: ${{ inputs.conformance-repo }}
+        REPO: ${{ github.repository }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
+    - if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: conformance-report
+        path: ${{ inputs.report-dir }}
+        if-no-files-found: ignore
