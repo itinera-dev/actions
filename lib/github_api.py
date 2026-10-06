@@ -59,6 +59,18 @@ class GitHub:
             url = next_page_url(link)
         return items
 
+    def download(self, path):
+        """The raw bytes at `path`, following redirects, such as a repository tarball."""
+        request = urllib.request.Request(
+            self._api_url + path,
+            headers={"Authorization": f"Bearer {self._token}", "X-GitHub-Api-Version": "2022-11-28"},
+        )
+        try:
+            with urllib.request.urlopen(request) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            raise GitHubError(f"GET {path} failed with {error.code}: {error.read().decode()}") from error
+
     def post(self, path, body):
         return self._request("POST", self._api_url + path, body)[0]
 
