@@ -1,0 +1,43 @@
+name: Release gate
+description: >-
+  Fails unless the pushed tag may become a release: the tag is "v" followed by the package version, the tagged
+  commit is on the release branch, the changelog has a section for the version, and conformance.json lists every
+  proposal of the tiers claimed.
+
+inputs:
+  manifest:
+    description: The package manifest declaring the version. Cargo.toml is understood, workspace or package.
+    required: true
+  tier:
+    description: The tier claimed; every proposal of tiers 1 to this one, at the pinned cases, must be listed.
+    required: true
+  changelog:
+    description: The changelog, holding a section for the version under a heading such as "## [0.1.0]".
+    default: CHANGELOG.md
+  branch:
+    description: The branch a released commit must be on.
+    default: main
+  conformance-repo:
+    description: The conformance repository, owner/name. Defaults to the "conformance" repository of the same owner.
+    default: ""
+  token:
+    description: Token that can read this repository and the conformance repository.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        MANIFEST: ${{ inputs.manifest }}
+        TIER: ${{ inputs.tier }}
+        CHANGELOG: ${{ inputs.changelog }}
+        BRANCH: ${{ inputs.branch }}
+        CONFORMANCE_REPO: ${{ inputs.conformance-repo }}
+        REPO: ${{ github.repository }}
+        REF_TYPE: ${{ github.ref_type }}
+        TAG: ${{ github.ref_name }}
+        SHA: ${{ github.sha }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"

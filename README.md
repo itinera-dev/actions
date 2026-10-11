@@ -2,7 +2,7 @@
 
 Shared GitHub Actions used by every itinera-dev repository: the pull request checks, the proposal automation and the conformance runs.
 
-Every action is a folder holding an `action.yml` that only declares inputs and runs one command, and a Python entry point. The logic lives in the importable `lib/` package, written for the Python standard library only, and is covered by the tests under `tests/`. Repositories use a released version, for example `itinera-dev/actions/pr-has-issue@v1`.
+Every action is a folder holding an `action.yml` that only declares inputs and runs one command, and a Python entry point. The logic lives in the importable `lib/` package, written for the Python standard library only, and is covered by the tests under `tests/`. Repositories use a released version, for example `itinera-dev/actions/pr-has-issue@v1`. The actions run on the runner's own `python3`, which must be Python 3.11 or later, as on `ubuntu-latest`.
 
 The rules for automation in the organisation are in the [contributing guide](https://github.com/itinera-dev/.github/blob/main/CONTRIBUTING.md).
 

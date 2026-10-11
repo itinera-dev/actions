@@ -1,3 +1,5 @@
+import pathlib
+import tempfile
 import unittest
 
 from lib.conformance import (
@@ -6,6 +8,7 @@ from lib.conformance import (
     exclusions_report,
     manifest_problems,
     parse_feature,
+    read_scenarios,
     tag_expression,
 )
 
@@ -90,6 +93,17 @@ class ParseFeature(unittest.TestCase):
 
     def test_scenarios_carry_their_feature_path(self):
         self.assertEqual({s.feature for s in self.scenarios.values()}, {PATH})
+
+
+class ReadScenarios(unittest.TestCase):
+    def test_every_feature_under_cases_is_read_with_its_path_from_the_root(self):
+        with tempfile.TemporaryDirectory() as work:
+            root = pathlib.Path(work)
+            folder = root / "cases/tier-1/0012-local-executor"
+            folder.mkdir(parents=True)
+            (folder / "local-executor.feature").write_text(FEATURE, encoding="utf-8")
+            (root / "README.feature").write_text("Feature: not a case\n  Scenario: Outside\n", encoding="utf-8")
+            self.assertEqual({s.feature for s in read_scenarios(root)}, {PATH})
 
 
 class ManifestProblems(unittest.TestCase):

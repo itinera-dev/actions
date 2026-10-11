@@ -1,0 +1,29 @@
+name: Create release
+description: >-
+  Creates the GitHub release of the pushed tag, a pre-release when its version has a pre-release part such as
+  -rc.1, with the notes of the version's changelog section and every file of a directory attached, such as the
+  conformance report.
+
+inputs:
+  assets:
+    description: The directory whose files are attached to the release.
+    default: conformance-report/
+  changelog:
+    description: The changelog, holding a section for the version under a heading such as "## [0.1.0]".
+    default: CHANGELOG.md
+  token:
+    description: Token that can create releases in this repository.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        ASSETS: ${{ inputs.assets }}
+        CHANGELOG: ${{ inputs.changelog }}
+        REPO: ${{ github.repository }}
+        TAG: ${{ github.ref_name }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"

@@ -27,8 +27,10 @@ class GitHub:
         self._token = token
         self._api_url = api_url
 
-    def _request(self, method, url, body=None):
-        data = None if body is None else json.dumps(body).encode()
+    def _request(self, method, url, body=None, data=None, content_type="application/json"):
+        """Send `body` as JSON, or the raw bytes `data` of `content_type`, returning the JSON answer and Link header."""
+        if body is not None:
+            data = json.dumps(body).encode()
         request = urllib.request.Request(
             url,
             data=data,
@@ -36,6 +38,7 @@ class GitHub:
             headers={
                 "Authorization": f"Bearer {self._token}",
                 "Accept": "application/vnd.github+json",
+                "Content-Type": content_type,
                 "X-GitHub-Api-Version": "2022-11-28",
             },
         )
@@ -71,6 +74,10 @@ class GitHub:
         except urllib.error.HTTPError as error:
             raise GitHubError(f"GET {path} failed with {error.code}: {error.read().decode()}") from error
 
+    def upload(self, url, data, content_type):
+        """Send raw bytes to an absolute `url`, such as a release's asset upload URL."""
+        return self._request("POST", url, data=data, content_type=content_type)[0]
+
     def post(self, path, body):
         return self._request("POST", self._api_url + path, body)[0]
 
@@ -79,6 +86,9 @@ class GitHub:
 
     def put(self, path, body):
         return self._request("PUT", self._api_url + path, body)[0]
+
+    def delete(self, path):
+        return self._request("DELETE", self._api_url + path)[0]
 
     def graphql(self, query, variables):
         result = self.post("/graphql", {"query": query, "variables": variables}) or {}
