@@ -1,9 +1,6 @@
 """Conformance runs: the manifest, the scenarios of the cases, the tag expression and the exclusions report."""
 
-import io
-import pathlib
 import re
-import tarfile
 from dataclasses import dataclass, field
 
 PROPOSAL_TAG = re.compile(r"@proposal-(\d+)")
@@ -62,18 +59,6 @@ def parse_feature(path, text):
             continue
         pending = set()
     return scenarios
-
-
-def download_cases(github, repo, tag, into):
-    """Extract the conformance repository at `tag` into `into`, returning the repository's root."""
-    archive = github.download(f"/repos/{repo}/tarball/{tag}")
-    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as tar:
-        if hasattr(tarfile, "data_filter"):
-            tar.extractall(into, filter="data")
-        else:
-            tar.extractall(into)
-    (root,) = pathlib.Path(into).iterdir()
-    return root
 
 
 def read_scenarios(root):
