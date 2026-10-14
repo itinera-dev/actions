@@ -7,7 +7,7 @@ import sys
 import tempfile
 from typing import NoReturn
 
-from lib.conformance import download_cases, manifest_problems, read_scenarios
+from lib.conformance import manifest_problems, read_scenarios
 from lib.github_api import GitHub, GitHubError
 from lib.release import changelog_section, compare_path, manifest_version, on_branch, tag_problems, tier_problems
 
@@ -74,7 +74,7 @@ def main():
 
     work = tempfile.mkdtemp(dir=env.get("RUNNER_TEMP"))
     try:
-        root = download_cases(github, conformance_repo, manifest["cases"], work)
+        root = github.extract_repository(conformance_repo, manifest["cases"], work)
     except GitHubError as error:
         fail([*found, f"The cases at {conformance_repo}@{manifest['cases']} cannot be downloaded: {error}"])
     found += tier_problems(read_scenarios(root), manifest["proposals"], claimed)

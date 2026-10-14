@@ -9,7 +9,6 @@ import tempfile
 from typing import NoReturn
 
 from lib.conformance import (
-    download_cases,
     exclusion_problems,
     exclusions_report,
     manifest_problems,
@@ -44,7 +43,7 @@ def main():
 
     work = tempfile.mkdtemp(dir=env.get("RUNNER_TEMP"))
     try:
-        root = download_cases(GitHub(env["GH_TOKEN"]), conformance_repo, manifest["cases"], work)
+        root = GitHub(env["GH_TOKEN"]).extract_repository(conformance_repo, manifest["cases"], work)
     except GitHubError as error:
         fail([f"The cases at {conformance_repo}@{manifest['cases']} cannot be downloaded: {error}"])
     scenarios = read_scenarios(root)

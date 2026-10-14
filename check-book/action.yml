@@ -1,0 +1,35 @@
+name: Check the book
+description: >-
+  Runs the examples of the language's book at the commit the repository pins, built against the repository's own
+  packages instead of the version the book names, so that a change that breaks the book is seen in its own pull request.
+
+inputs:
+  pin:
+    description: The JSON file that pins the book, holding an object whose "commit" is a full commit SHA of the book.
+    default: book.json
+  book-dir:
+    description: The book's directory for this language, holding its Cargo.toml.
+    required: true
+  command:
+    description: The command that runs the book's examples, run in the book's directory.
+    default: cargo test
+  book-repo:
+    description: The book repository, owner/name. Defaults to the "book" repository of the same owner.
+    default: ""
+  token:
+    description: Token that can read the book repository.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PIN: ${{ inputs.pin }}
+        BOOK_DIR: ${{ inputs.book-dir }}
+        COMMAND: ${{ inputs.command }}
+        BOOK_REPO: ${{ inputs.book-repo }}
+        REPO: ${{ github.repository }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"

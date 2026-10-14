@@ -1,8 +1,11 @@
 """A minimal GitHub REST and GraphQL client over urllib."""
 
+import io
 import json
 import os
+import pathlib
 import re
+import tarfile
 import urllib.error
 import urllib.request
 
@@ -73,6 +76,17 @@ class GitHub:
                 return response.read()
         except urllib.error.HTTPError as error:
             raise GitHubError(f"GET {path} failed with {error.code}: {error.read().decode()}") from error
+
+    def extract_repository(self, repo, ref, into):
+        """Extract the repository `repo` at `ref`, a tag, branch or commit, into `into`, returning its root."""
+        archive = self.download(f"/repos/{repo}/tarball/{ref}")
+        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as tar:
+            if hasattr(tarfile, "data_filter"):
+                tar.extractall(into, filter="data")
+            else:
+                tar.extractall(into)
+        (root,) = pathlib.Path(into).iterdir()
+        return root
 
     def upload(self, url, data, content_type):
         """Send raw bytes to an absolute `url`, such as a release's asset upload URL."""
