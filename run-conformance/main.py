@@ -1,16 +1,21 @@
 """Run the conformance cases pinned in conformance.json with the language's runner, and write the report."""
 
-import io
 import json
 import os
 import pathlib
 import subprocess
 import sys
-import tarfile
 import tempfile
 from typing import NoReturn
 
-from lib.conformance import exclusion_problems, exclusions_report, manifest_problems, parse_feature, tag_expression
+from lib.conformance import (
+    download_cases,
+    exclusion_problems,
+    exclusions_report,
+    manifest_problems,
+    read_scenarios,
+    tag_expression,
+)
 from lib.github_api import GitHub, GitHubError
 
 
@@ -19,18 +24,6 @@ def fail(problems) -> NoReturn:
     for problem in problems:
         print(f"::error::{problem}")
     sys.exit(1)
-
-
-def download_cases(github, repo, tag, into):
-    """Extract the conformance repository at `tag` into `into`, returning the repository's root."""
-    archive = github.download(f"/repos/{repo}/tarball/{tag}")
-    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as tar:
-        if hasattr(tarfile, "data_filter"):
-            tar.extractall(into, filter="data")
-        else:
-            tar.extractall(into)
-    (root,) = pathlib.Path(into).iterdir()
-    return root
 
 
 def main():
@@ -54,11 +47,7 @@ def main():
         root = download_cases(GitHub(env["GH_TOKEN"]), conformance_repo, manifest["cases"], work)
     except GitHubError as error:
         fail([f"The cases at {conformance_repo}@{manifest['cases']} cannot be downloaded: {error}"])
-    scenarios = [
-        s
-        for path in sorted(root.joinpath("cases").rglob("*.feature"))
-        for s in parse_feature(path.relative_to(root).as_posix(), path.read_text(encoding="utf-8"))
-    ]
+    scenarios = read_scenarios(root)
     print(f"Cases: {conformance_repo}@{manifest['cases']}, {len(scenarios)} scenarios.")
 
     found = exclusion_problems(scenarios, manifest["impossible"])
