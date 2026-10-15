@@ -1,0 +1,20 @@
+name: Commit messages
+description: >-
+  Fails unless every commit of the pull request, other than merges, has a Conventional Commits subject and, for a
+  feature, a fix or a breaking change, its changelog entries as trailers that git-cliff reads.
+
+inputs:
+  token:
+    description: Token that can read the pull request's commits.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
