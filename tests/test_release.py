@@ -129,33 +129,58 @@ class TierProblems(unittest.TestCase):
         Scenario("cases/tier-1/0012-local-executor/b.feature", "B", {"@proposal-0012", "@proposal-0042"}),
         Scenario("cases/tier-2/0100-transfers/c.feature", "C", {"@proposal-0100"}),
     ]
+    conversions = [
+        Scenario("cases/tier-1/0054-failures/d.feature", "D", {"@proposal-0113", "@capability-value-conversions"}),
+        Scenario("cases/tier-1/0054-failures/e.feature", "E", {"@proposal-0113", "@capability-value-conversions"}),
+    ]
 
     def test_listing_every_proposal_of_the_tier_claims_it(self):
-        self.assertEqual(tier_problems(self.scenarios[:2], [2, 12, 42], 1), [])
+        self.assertEqual(tier_problems(self.scenarios[:2], [2, 12, 42], [], 1), [])
 
     def test_a_proposal_of_the_tier_not_listed_is_refused(self):
-        found = tier_problems(self.scenarios, [2, 12], 1)
+        found = tier_problems(self.scenarios, [2, 12], [], 1)
         self.assertEqual(len(found), 1)
         self.assertIn("0042", found[0])
 
     def test_claiming_a_tier_needs_every_tier_below_it(self):
-        found = tier_problems(self.scenarios, [100], 2)
+        found = tier_problems(self.scenarios, [100], [], 2)
         self.assertEqual(len(found), 3)
 
     def test_proposals_of_higher_tiers_are_not_required(self):
-        self.assertEqual(tier_problems(self.scenarios, [2, 12, 42], 1), [])
+        self.assertEqual(tier_problems(self.scenarios, [2, 12, 42], [], 1), [])
 
     def test_scenarios_outside_a_tier_folder_are_not_required(self):
         scenarios = [*self.scenarios[:2], Scenario("cases/drafts/x.feature", "X", {"@proposal-0099"})]
-        self.assertEqual(tier_problems(scenarios, [2, 12, 42], 1), [])
+        self.assertEqual(tier_problems(scenarios, [2, 12, 42], [], 1), [])
+
+    def test_a_proposal_whose_every_case_needs_a_capability_not_claimed_is_not_required(self):
+        self.assertEqual(tier_problems([*self.scenarios, *self.conversions], [2, 12, 42], ["sync"], 1), [])
+
+    def test_a_proposal_whose_capability_is_claimed_is_required(self):
+        found = tier_problems([*self.scenarios, *self.conversions], [2, 12, 42], ["value-conversions"], 1)
+        self.assertEqual(len(found), 1)
+        self.assertIn("0113", found[0])
+
+    def test_a_proposal_with_one_case_needing_no_capability_left_unclaimed_is_required(self):
+        scenarios = [*self.conversions, Scenario("cases/tier-1/0054-failures/f.feature", "F", {"@proposal-0113"})]
+        found = tier_problems(scenarios, [], ["sync"], 1)
+        self.assertEqual(len(found), 1)
+        self.assertIn("0113", found[0])
+
+    def test_an_amended_proposal_with_cases_of_its_own_is_required_without_its_amendments_capability(self):
+        scenarios = [*self.conversions, Scenario("cases/tier-1/0054-failures/g.feature", "G", {"@proposal-0054"})]
+        scenarios[0] = Scenario(scenarios[0].feature, "D", {*scenarios[0].tags, "@proposal-0054"})
+        found = tier_problems(scenarios, [], ["sync"], 1)
+        self.assertEqual(len(found), 1)
+        self.assertIn("0054", found[0])
 
     def test_a_tier_below_1_cannot_be_claimed(self):
-        found = tier_problems(self.scenarios, [2, 12, 42], 0)
+        found = tier_problems(self.scenarios, [2, 12, 42], [], 0)
         self.assertEqual(len(found), 1)
         self.assertIn("1 or more", found[0])
 
     def test_a_tier_without_cases_cannot_be_claimed(self):
-        found = tier_problems(self.scenarios[2:], [100], 1)
+        found = tier_problems(self.scenarios[2:], [100], [], 1)
         self.assertEqual(len(found), 1)
         self.assertIn("no proposal", found[0])
 

@@ -17,6 +17,11 @@ class Scenario:
     def proposals(self):
         return {int(m.group(1)) for tag in self.tags if (m := PROPOSAL_TAG.fullmatch(tag))}
 
+    def applies(self, capabilities):
+        """Whether the scenario applies to a language claiming `capabilities`: it needs no capability left unclaimed."""
+        claimed = {f"@capability-{c}" for c in capabilities}
+        return all(tag in claimed for tag in self.tags if CAPABILITY_TAG.fullmatch(tag))
+
 
 def parse_tags(line):
     return set(line.split("#", 1)[0].split())

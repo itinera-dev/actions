@@ -94,7 +94,7 @@ def main():
         root = github.extract_repository(conformance_repo, manifest["cases"], work)
     except GitHubError as error:
         fail([*found, f"The cases at {conformance_repo}@{manifest['cases']} cannot be downloaded: {error}"])
-    found += tier_problems(read_scenarios(root), manifest["proposals"], claimed)
+    found += tier_problems(read_scenarios(root), manifest["proposals"], manifest["capabilities"], claimed)
 
     if found:
         fail(found)
