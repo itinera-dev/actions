@@ -1,0 +1,19 @@
+name: Publish to npm
+description: >-
+  Publishes a workspace package's version to npm, unless that version is on npm already, such as the first version
+  of a package, which its maintainer publishes by hand. With trusted publishing, the job needs `id-token: write`,
+  actions/setup-node with registry-url https://registry.npmjs.org, and the repository's dependencies installed.
+
+inputs:
+  package:
+    description: The directory of the workspace package published, holding its package.json.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PACKAGE: ${{ inputs.package }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"

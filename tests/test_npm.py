@@ -1,6 +1,20 @@
 import unittest
 
-from lib.npm import dist_tag_problems, lock_problems, workspace_of
+from lib.npm import dist_tag_problems, lock_problems, npm_versions, package_of, workspace_of
+from tests.registry_answers import answering, failing
+
+
+class PackageOf(unittest.TestCase):
+    def test_a_manifest_gives_its_name_and_version(self):
+        self.assertEqual(package_of({"name": "itinera", "version": "0.1.0"}), ("itinera", "0.1.0"))
+
+    def test_a_manifest_that_is_not_an_object_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "must hold an object"):
+            package_of(["itinera"])
+
+    def test_a_manifest_without_a_version_is_refused(self):
+        with self.assertRaisesRegex(ValueError, '"name" and "version"'):
+            package_of({"name": "itinera"})
 
 
 class WorkspaceOf(unittest.TestCase):
@@ -46,6 +60,21 @@ class DistTagProblems(unittest.TestCase):
 
     def test_a_release_under_next_is_refused(self):
         self.assertIn("must be removed", dist_tag_problems({"publishConfig": {"tag": "next"}}, "0.1.0")[0])
+
+
+class NpmVersions(unittest.TestCase):
+    def test_a_package_gives_every_version_it_has(self):
+        with answering({"versions": {"0.1.0-beta.1": {}, "0.1.0": {}}}):
+            self.assertEqual(npm_versions("itinera"), {"0.1.0-beta.1", "0.1.0"})
+
+    def test_a_package_that_does_not_exist_has_no_version(self):
+        with failing(404):
+            self.assertEqual(npm_versions("itinera"), set())
+
+    def test_a_scoped_package_is_asked_for_with_its_slash_escaped(self):
+        with answering({"versions": {}}) as urlopen:
+            npm_versions("@itinera-dev/testing")
+        self.assertEqual(urlopen.call_args.args[0].full_url, "https://registry.npmjs.org/@itinera-dev%2Ftesting")
 
 
 if __name__ == "__main__":
