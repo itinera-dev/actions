@@ -1,0 +1,33 @@
+name: Reference editions
+description: >-
+  Lays out a repository's API reference in editions, as the book has them, ready for actions/upload-pages-artifact:
+  the newest release at the root, a frozen copy of every release under its version, from the archive attached to
+  the GitHub release tagged "v" followed by it, and the reference built from the checked-out commit under next/.
+  Before any release, the root sends readers to next/.
+
+inputs:
+  next:
+    description: The directory holding the reference built from the checked-out commit, with its index.html.
+    required: true
+  asset:
+    description: The gzipped tar archive of the reference attached to each GitHub release.
+    default: api-reference.tar.gz
+  out:
+    description: The directory the editions are laid out in, emptied first.
+    default: reference-site
+  token:
+    description: Token that can read this repository's releases.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        NEXT: ${{ inputs.next }}
+        ASSET: ${{ inputs.asset }}
+        OUT: ${{ inputs.out }}
+        REPO: ${{ github.repository }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
