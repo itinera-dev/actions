@@ -6,6 +6,8 @@ import pathlib
 import re
 import tomllib
 
+from lib.cargo import publishable_members
+
 COMMIT = re.compile(r"[0-9a-f]{40}")
 DEPENDENCY_TABLES = ("dependencies", "dev-dependencies", "build-dependencies")
 
@@ -24,11 +26,9 @@ def pinned_commit(pin):
 def publishable_packages(metadata):
     """The packages of a Cargo workspace that may be published, by name, with the directory of each, from the
     output of `cargo metadata --no-deps --format-version 1`."""
-    members = set(metadata["workspace_members"])
     return {
         package["name"]: str(pathlib.PurePath(package["manifest_path"]).parent)
-        for package in metadata["packages"]
-        if package["id"] in members and package.get("publish") != []
+        for package in publishable_members(metadata)
     }
 
 

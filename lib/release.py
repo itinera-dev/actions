@@ -1,5 +1,6 @@
 """Releases: the package version, the tag that requests a release, the tier claimed and the release notes."""
 
+import json
 import re
 import tomllib
 import urllib.parse
@@ -19,7 +20,14 @@ def cargo_version(text):
     return None
 
 
-MANIFEST_READERS = {"Cargo.toml": cargo_version}
+def package_json_version(text):
+    """The version a package.json declares, or None."""
+    manifest = json.loads(text)
+    version = manifest.get("version") if isinstance(manifest, dict) else None
+    return version if isinstance(version, str) else None
+
+
+MANIFEST_READERS = {"Cargo.toml": cargo_version, "package.json": package_json_version}
 
 
 def manifest_version(name, text):
@@ -33,7 +41,7 @@ def manifest_version(name, text):
         raise ValueError(f"{name} is not a manifest the release gate can read; it reads {known}.")
     try:
         version = reader(text)
-    except tomllib.TOMLDecodeError as error:
+    except ValueError as error:
         raise ValueError(f"{name} cannot be parsed: {error}") from error
     if version is None:
         raise ValueError(f"{name} declares no version.")

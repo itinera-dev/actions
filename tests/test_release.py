@@ -66,12 +66,20 @@ class CargoVersion(unittest.TestCase):
 
 
 class ManifestVersion(unittest.TestCase):
+    def test_a_package_json_declares_its_version(self):
+        manifest = '{"name": "itinera", "version": "0.1.0-beta.1"}'
+        self.assertEqual(manifest_version("packages/itinera/package.json", manifest), "0.1.0-beta.1")
+
+    def test_a_package_json_that_does_not_parse_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "^package.json cannot be parsed"):
+            manifest_version("package.json", "{")
+
     def test_the_reader_is_chosen_by_file_name(self):
         self.assertEqual(manifest_version("crates/itinera/Cargo.toml", PACKAGE), "0.2.0")
 
     def test_an_unknown_manifest_is_refused(self):
-        with self.assertRaisesRegex(ValueError, "reads Cargo.toml"):
-            manifest_version("package.json", "{}")
+        with self.assertRaisesRegex(ValueError, "reads Cargo.toml, package.json"):
+            manifest_version("pom.xml", "<project/>")
 
     def test_a_manifest_that_does_not_parse_is_refused(self):
         with self.assertRaisesRegex(ValueError, "cannot be parsed"):
