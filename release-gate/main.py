@@ -9,6 +9,7 @@ from typing import NoReturn
 
 from lib.conformance import manifest_problems, read_scenarios
 from lib.github_api import GitHub, GitHubError
+from lib.npm import dist_tag_problems, lock_problems, workspace_of
 from lib.release import changelog_section, compare_path, manifest_version, on_branch, tag_problems, tier_problems
 
 
@@ -26,6 +27,20 @@ def read(path, found):
     except (OSError, ValueError) as error:
         found.append(f"{path} cannot be read: {error}")
         return None
+
+
+def npm_problems(path, text, version):
+    """Why the npm package whose package.json at `path` holds `text` cannot release `version`: the lockfile at the
+    repository's root must record it, and its dist-tag must suit it."""
+    found = []
+    lock = read("package-lock.json", found)
+    if lock is None:
+        return found
+    try:
+        parsed = json.loads(lock)
+    except ValueError as error:
+        return [f"package-lock.json cannot be parsed: {error}"]
+    return lock_problems(parsed, workspace_of(path), version) + dist_tag_problems(json.loads(text), version)
 
 
 def main():
@@ -49,6 +64,8 @@ def main():
         fail([str(error)])
     print(f"Tag {tag}, version {version}, tier {claimed} claimed.")
     found += tag_problems(env["REF_TYPE"], tag, version)
+    if pathlib.PurePosixPath(env["MANIFEST"]).name == "package.json":
+        found += npm_problems(env["MANIFEST"], text, version)
 
     try:
         status = github.get(compare_path(repo, env["SHA"], branch))["status"]
