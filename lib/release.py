@@ -73,13 +73,18 @@ def tier(scenario):
     return int(match.group(1)) if match else None
 
 
-def tier_problems(scenarios, proposals, claimed):
-    """The proposals of tiers 1 to `claimed` that `proposals` does not list."""
+def tier_problems(scenarios, proposals, capabilities, claimed):
+    """The proposals of tiers 1 to `claimed` that `proposals` does not list.
+
+    A proposal is required only when one of its scenarios applies to the language, needing no capability that
+    `capabilities` leaves unclaimed.
+    """
     if claimed < 1:
         return [f"The tier claimed must be 1 or more, not {claimed}."]
-    required = set().union(*(s.proposals() for s in scenarios if (t := tier(s)) is not None and t <= claimed))
-    if not required:
+    in_tiers = [s for s in scenarios if (t := tier(s)) is not None and t <= claimed]
+    if not set().union(*(s.proposals() for s in in_tiers)):
         return [f"The cases hold no proposal of tiers 1 to {claimed}."]
+    required = set().union(*(s.proposals() for s in in_tiers if s.applies(capabilities)))
     return [
         f"Proposal {n:04d}, of tier {claimed} or below, is not listed in conformance.json."
         for n in sorted(required - set(proposals))

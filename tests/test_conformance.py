@@ -58,6 +58,19 @@ def entry(feature, scenario):
     return {"feature": feature, "scenario": scenario, "proof": {"test": "t", "file": "tests/proofs.rs"}}
 
 
+class ScenarioApplies(unittest.TestCase):
+    def test_a_scenario_needing_no_capability_applies_to_every_language(self):
+        self.assertTrue(Scenario("cases/a.feature", "A", {"@proposal-0012"}).applies([]))
+
+    def test_a_scenario_applies_when_every_capability_it_needs_is_claimed(self):
+        scenario = Scenario("cases/a.feature", "A", {"@proposal-0009", "@capability-async", "@capability-testing"})
+        self.assertTrue(scenario.applies(["sync", "async", "testing"]))
+
+    def test_a_scenario_needing_a_capability_not_claimed_does_not_apply(self):
+        scenario = Scenario("cases/a.feature", "A", {"@proposal-0009", "@capability-async", "@capability-testing"})
+        self.assertFalse(scenario.applies(["async"]))
+
+
 class ParseFeature(unittest.TestCase):
     def setUp(self):
         self.scenarios = {s.name: s for s in parse_feature(PATH, FEATURE)}

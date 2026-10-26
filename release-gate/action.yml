@@ -2,8 +2,9 @@ name: Release gate
 description: >-
   Fails unless the pushed tag may become a release: the tag is "v" followed by the package version, the tagged
   commit is on the release branch, the changelog has a section for the version, and conformance.json lists every
-  proposal of the tiers claimed. For an npm package, package-lock.json at the repository's root must also record the
-  version, and the dist-tag in publishConfig.tag must suit it: "next" for a pre-release, none or "latest" otherwise.
+  proposal of the tiers claimed, except one whose every case needs a capability conformance.json does not claim.
+  For an npm package, package-lock.json at the repository's root must also record the version, and the dist-tag in
+  publishConfig.tag must suit it: "next" for a pre-release, none or "latest" otherwise.
 
 inputs:
   manifest:
@@ -12,7 +13,9 @@ inputs:
       package, or an npm package's package.json, such as packages/itinera/package.json.
     required: true
   tier:
-    description: The tier claimed; every proposal of tiers 1 to this one, at the pinned cases, must be listed.
+    description: >-
+      The tier claimed; every proposal of tiers 1 to this one, at the pinned cases, must be listed, unless every case
+      of it needs a capability conformance.json does not claim.
     required: true
   changelog:
     description: The changelog, holding a section for the version under a heading such as "## [0.1.0]".
