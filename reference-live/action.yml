@@ -1,0 +1,33 @@
+name: Reference live
+description: >-
+  Checks that a reference laid out in editions by reference-editions is live once it is deployed: its root and the
+  front page of the newest release, read with a fresh copy from every cache, name "v" followed by that release's
+  version in their title. It reads them again every 20 seconds until the timeout, then fails, since GitHub Pages can
+  report a deployment as successful and keep serving the previous one. Before any release, there is nothing to check.
+
+inputs:
+  url:
+    description: The address the reference is served from, such as the page_url output of actions/deploy-pages.
+    required: true
+  asset:
+    description: The gzipped tar archive of the reference attached to each GitHub release, as reference-editions has it.
+    default: api-reference.tar.gz
+  timeout:
+    description: How many seconds to wait for the reference to be live before failing.
+    default: "600"
+  token:
+    description: Token that can read this repository's releases.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        URL: ${{ inputs.url }}
+        ASSET: ${{ inputs.asset }}
+        TIMEOUT: ${{ inputs.timeout }}
+        REPO: ${{ github.repository }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
