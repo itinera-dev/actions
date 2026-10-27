@@ -7,6 +7,7 @@ import pathlib
 import re
 import tarfile
 import urllib.error
+import urllib.parse
 import urllib.request
 
 API_URL = os.environ.get("GITHUB_API_URL", "https://api.github.com")
@@ -23,6 +24,28 @@ def next_page_url(link_header):
         if match:
             return match.group(1)
     return None
+
+
+def unpack(archive, into):
+    """Extracts a gzipped tar archive, given as bytes, into the directory `into`, refusing members that would land
+    outside it where Python can tell."""
+    with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as tar:
+        if hasattr(tarfile, "data_filter"):
+            tar.extractall(into, filter="data")
+        else:
+            tar.extractall(into)
+
+
+class SameHostAuthorization(urllib.request.HTTPRedirectHandler):
+    """Follows redirects, sending the token only to the host it was meant for, never to another host such as the
+    storage a release asset redirects to, whose signed address needs no token."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        redirected = super().redirect_request(req, fp, code, msg, headers, newurl)
+        elsewhere = urllib.parse.urlsplit(newurl).netloc != urllib.parse.urlsplit(req.full_url).netloc
+        if redirected is not None and elsewhere:
+            redirected.remove_header("Authorization")
+        return redirected
 
 
 class GitHub:
@@ -65,26 +88,29 @@ class GitHub:
             url = next_page_url(link)
         return items
 
-    def download(self, path):
+    def download(self, path, accept="application/vnd.github+json"):
         """The raw bytes at `path`, following redirects, such as a repository tarball."""
         request = urllib.request.Request(
             self._api_url + path,
-            headers={"Authorization": f"Bearer {self._token}", "X-GitHub-Api-Version": "2022-11-28"},
+            headers={
+                "Authorization": f"Bearer {self._token}",
+                "Accept": accept,
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
         )
         try:
-            with urllib.request.urlopen(request) as response:
+            with urllib.request.build_opener(SameHostAuthorization).open(request) as response:
                 return response.read()
         except urllib.error.HTTPError as error:
             raise GitHubError(f"GET {path} failed with {error.code}: {error.read().decode()}") from error
 
+    def download_asset(self, repo, asset_id):
+        """The bytes of a release's asset."""
+        return self.download(f"/repos/{repo}/releases/assets/{asset_id}", accept="application/octet-stream")
+
     def extract_repository(self, repo, ref, into):
         """Extract the repository `repo` at `ref`, a tag, branch or commit, into `into`, returning its root."""
-        archive = self.download(f"/repos/{repo}/tarball/{ref}")
-        with tarfile.open(fileobj=io.BytesIO(archive), mode="r:gz") as tar:
-            if hasattr(tarfile, "data_filter"):
-                tar.extractall(into, filter="data")
-            else:
-                tar.extractall(into)
+        unpack(self.download(f"/repos/{repo}/tarball/{ref}"), into)
         (root,) = pathlib.Path(into).iterdir()
         return root
 
