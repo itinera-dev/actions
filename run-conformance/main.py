@@ -1,4 +1,4 @@
-"""Run the conformance cases pinned in conformance.json with the language's runner, and write the report."""
+"""Run the conformance cases pinned in a language's manifest with its runner, and write the report."""
 
 import json
 import os
@@ -11,8 +11,10 @@ from typing import NoReturn
 from lib.conformance import (
     exclusion_problems,
     exclusions_report,
+    language_problems,
     manifest_problems,
     read_scenarios,
+    report_names,
     tag_expression,
 )
 from lib.github_api import GitHub, GitHubError
@@ -30,13 +32,23 @@ def main():
     owner = env["REPO"].split("/")[0]
     conformance_repo = env.get("CONFORMANCE_REPO") or f"{owner}/conformance"
     report_dir = pathlib.Path(env["REPORT_DIR"]).resolve()
+    manifest_path = env.get("MANIFEST") or "conformance.json"
+    language = env.get("LANGUAGE", "")
+
+    found = language_problems(language)
+    if found:
+        fail(found)
+    names = report_names(language)
+    # The upload step reads these names, even when this run fails.
+    with open(env["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+        output.write(f"artifact={names.artifact}\ncucumber={names.cucumber}\nexclusions={names.exclusions}\n")
 
     try:
-        manifest = json.loads(pathlib.Path("conformance.json").read_text(encoding="utf-8"))
+        manifest = json.loads(pathlib.Path(manifest_path).read_text(encoding="utf-8"))
     except (OSError, ValueError) as error:
-        fail([f"conformance.json cannot be read: {error}"])
+        fail([f"{manifest_path} cannot be read: {error}"])
     if not isinstance(manifest, dict):
-        fail(["conformance.json must hold an object."])
+        fail([f"{manifest_path} must hold an object."])
     found = manifest_problems(manifest)
     if found:
         fail(found)
@@ -54,14 +66,14 @@ def main():
         fail(found)
 
     report_dir.mkdir(parents=True, exist_ok=True)
-    report = report_dir / "cucumber.json"
-    (report_dir / "exclusions.json").write_text(
+    report = report_dir / names.cucumber
+    (report_dir / names.exclusions).write_text(
         json.dumps(exclusions_report(manifest["impossible"]), indent=2) + "\n", encoding="utf-8"
     )
 
     if not manifest["proposals"]:
         report.write_text("[]\n", encoding="utf-8")
-        print("No proposals are listed in conformance.json yet, so no scenario runs.")
+        print(f"No proposals are listed in {manifest_path} yet, so no scenario runs.")
         return
 
     tags = tag_expression(scenarios, manifest["proposals"], manifest["capabilities"], manifest["impossible"])
