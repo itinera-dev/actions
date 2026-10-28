@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 PROPOSAL_TAG = re.compile(r"@proposal-(\d+)")
 CAPABILITY_TAG = re.compile(r"@capability-[\w-]+")
 SCENARIO_KEYWORDS = ("Scenario Outline:", "Scenario Template:", "Scenario:", "Example:")
+LANGUAGE = re.compile(r"[a-z][a-z0-9-]*")
 
 
 @dataclass
@@ -150,3 +151,29 @@ def exclusions_report(impossible):
         for tag in sorted(impossible)
         for e in impossible[tag]
     ]
+
+
+@dataclass(frozen=True)
+class ReportNames:
+    """The names a run's report takes: its two files and the artifact they are uploaded as."""
+
+    cucumber: str
+    exclusions: str
+    artifact: str
+
+
+def report_names(language):
+    """The names of the report of one language, so a repository holding several keeps each language's apart.
+
+    Without a language, they are the names of a repository holding one.
+    """
+    if not language:
+        return ReportNames("cucumber.json", "exclusions.json", "conformance-report")
+    return ReportNames(f"cucumber-{language}.json", f"exclusions-{language}.json", f"conformance-report-{language}")
+
+
+def language_problems(language):
+    """What is wrong with a language's name, which goes into file and artifact names."""
+    if not language or LANGUAGE.fullmatch(language):
+        return []
+    return [f'The language "{language}" must be lower-case letters, digits and hyphens, starting with a letter.']

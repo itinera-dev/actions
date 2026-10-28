@@ -1,16 +1,28 @@
 name: Run conformance
 description: >-
-  Runs the conformance cases pinned in conformance.json with the language's runner, after checking the
+  Runs the conformance cases pinned in a language's manifest with its runner, after checking the
   scenarios excluded as impossible to express, and uploads the report.
 
 inputs:
   command:
     description: >-
       The command that starts the language's runner. It receives ITINERA_CONFORMANCE_CASES,
-      ITINERA_CONFORMANCE_TAGS and ITINERA_CONFORMANCE_REPORT. Not run while conformance.json lists no proposals.
+      ITINERA_CONFORMANCE_TAGS and ITINERA_CONFORMANCE_REPORT. Not run while the manifest lists no proposals.
     required: true
+  manifest:
+    description: >-
+      The language's manifest. A repository holding several languages has one for each, such as
+      conformance-java.json beside conformance.json.
+    default: conformance.json
+  language:
+    description: >-
+      The language whose report this is, in lower case, such as java, for a repository holding several languages.
+      Its name goes into the report's files and its artifact, cucumber-java.json, exclusions-java.json and
+      conformance-report-java, so that each language's report keeps its own. Without it, they are cucumber.json,
+      exclusions.json and conformance-report.
+    default: ""
   report-dir:
-    description: The directory the report is written to, holding cucumber.json and exclusions.json.
+    description: The directory the report is written to, holding its Cucumber JSON and its exclusions file.
     default: conformance-report/
   conformance-repo:
     description: The conformance repository, owner/name. Defaults to the "conformance" repository of the same owner.
@@ -22,18 +34,25 @@ inputs:
 runs:
   using: composite
   steps:
-    - shell: bash
+    - id: run
+      shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
         COMMAND: ${{ inputs.command }}
+        MANIFEST: ${{ inputs.manifest }}
+        LANGUAGE: ${{ inputs.language }}
         REPORT_DIR: ${{ inputs.report-dir }}
         CONFORMANCE_REPO: ${{ inputs.conformance-repo }}
         REPO: ${{ github.repository }}
         PYTHONPATH: ${{ github.action_path }}/..
       run: python3 "$GITHUB_ACTION_PATH/main.py"
-    - if: always()
+    # Skipped when the run stopped before naming its report; uploads only this run's two files, so languages
+    # sharing a report directory keep their artifacts apart.
+    - if: always() && steps.run.outputs.artifact != ''
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
-        name: conformance-report
-        path: ${{ inputs.report-dir }}
+        name: ${{ steps.run.outputs.artifact }}
+        path: |
+          ${{ inputs.report-dir }}/${{ steps.run.outputs.cucumber }}
+          ${{ inputs.report-dir }}/${{ steps.run.outputs.exclusions }}
         if-no-files-found: ignore

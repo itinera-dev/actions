@@ -3,12 +3,15 @@ import tempfile
 import unittest
 
 from lib.conformance import (
+    ReportNames,
     Scenario,
     exclusion_problems,
     exclusions_report,
+    language_problems,
     manifest_problems,
     parse_feature,
     read_scenarios,
+    report_names,
     tag_expression,
 )
 
@@ -204,6 +207,35 @@ class ExclusionsReport(unittest.TestCase):
                 {**entry("cases/b.feature", "B"), "tag": "non-value"},
             ],
         )
+
+
+class ReportNamesOfALanguage(unittest.TestCase):
+    def test_a_repository_holding_one_language_keeps_the_plain_names(self):
+        self.assertEqual(
+            report_names(""),
+            ReportNames("cucumber.json", "exclusions.json", "conformance-report"),
+        )
+
+    def test_each_language_of_a_repository_holding_several_names_its_own_report(self):
+        self.assertEqual(
+            report_names("java"),
+            ReportNames("cucumber-java.json", "exclusions-java.json", "conformance-report-java"),
+        )
+
+    def test_no_language_is_accepted(self):
+        self.assertEqual(language_problems(""), [])
+
+    def test_a_language_written_in_lower_case_letters_digits_and_hyphens_is_accepted(self):
+        for language in ["java", "kotlin-android", "c99"]:
+            with self.subTest(language=language):
+                self.assertEqual(language_problems(language), [])
+
+    def test_a_language_that_cannot_name_a_file_is_refused_by_name(self):
+        for language in ["Java", "java/kotlin", "../java", "-java", "9java", "java kotlin"]:
+            with self.subTest(language=language):
+                found = language_problems(language)
+                self.assertEqual(len(found), 1)
+                self.assertIn(f'"{language}"', found[0])
 
 
 if __name__ == "__main__":
