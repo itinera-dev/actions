@@ -1,5 +1,6 @@
 """Conformance runs: the manifest, the scenarios of the cases, the tag expression and the exclusions report."""
 
+import json
 import re
 from dataclasses import dataclass, field
 
@@ -74,6 +75,19 @@ def read_scenarios(root):
         for path in sorted(root.joinpath("cases").rglob("*.feature"))
         for s in parse_feature(path.relative_to(root).as_posix(), path.read_text(encoding="utf-8"))
     ]
+
+
+def load_manifest(name, text):
+    """The conformance manifest called `name`, holding `text`, and the problems that keep it from being used, each
+    naming the file: the manifest is None when there are any."""
+    try:
+        manifest = json.loads(text)
+    except ValueError as error:
+        return None, [f"{name} cannot be read: {error}"]
+    if not isinstance(manifest, dict):
+        return None, [f"{name} must hold an object."]
+    found = [f"{name}: {problem}" for problem in manifest_problems(manifest)]
+    return (None if found else manifest), found
 
 
 def manifest_problems(manifest):
