@@ -8,6 +8,11 @@ import urllib.parse
 TIER_PATH = re.compile(r"cases/tier-(\d+)/")
 HEADING = re.compile(r"##[ \t]+\[?v?(\d[^\]\s]*).*")
 SECTION_END = re.compile(r"#{1,2}[ \t]|\[[^\]]+\]:\s")
+PROPERTY_SPACE = " \t\f"
+PROPERTY_ESCAPES = {"t": "\t", "n": "\n", "r": "\r", "f": "\f"}
+ESCAPE = re.compile(r"\\(u[0-9A-Fa-f]{0,4}|.)", re.DOTALL)
+UNICODE_ESCAPE = re.compile(r"u[0-9A-Fa-f]{4}")
+PROPERTY_LINE_END = re.compile(r"\r\n|\r|\n")
 
 
 def cargo_version(text):
@@ -27,7 +32,84 @@ def package_json_version(text):
     return version if isinstance(version, str) else None
 
 
-MANIFEST_READERS = {"Cargo.toml": cargo_version, "package.json": package_json_version}
+def gradle_properties_version(text):
+    """The version a gradle.properties declares under the key `version`, or None."""
+    return java_properties(text).get("version")
+
+
+def java_properties(text):
+    """The entries of a Java properties file, read as java.util.Properties reads one: blank lines and comments
+    skipped, a line ending in an odd number of backslashes continued on the next, each key ending at its first
+    unescaped "=", ":" or white space, and a later entry replacing an earlier one with the same key.
+
+    Raises ValueError on a malformed Unicode escape.
+    """
+    entries = {}
+    for line in logical_lines(text):
+        key, value = split_entry(line)
+        entries[unescape(key)] = unescape(value)
+    return entries
+
+
+def logical_lines(text):
+    """The entries of a properties file, one string each, with continued lines joined. A line ends only at a line
+    feed, a carriage return or both, and a continuation that leaves the entry empty starts it afresh, so the next
+    line may still be blank or a comment."""
+    pending = ""
+    for natural in PROPERTY_LINE_END.split(text):
+        line = natural.lstrip(PROPERTY_SPACE)
+        if not pending and (not line or line[0] in "#!"):
+            continue
+        line = pending + line
+        if continues(line):
+            pending = line[:-1]
+            continue
+        pending = ""
+        yield line
+    if pending:
+        yield pending
+
+
+def continues(line):
+    """Whether a properties line goes on in the next one: it ends in an odd number of backslashes."""
+    return (len(line) - len(line.rstrip("\\"))) % 2 == 1
+
+
+def split_entry(line):
+    """The key and the value of a properties entry, still escaped."""
+    i = 0
+    while i < len(line) and line[i] not in "=:" and line[i] not in PROPERTY_SPACE:
+        i += 2 if line[i] == "\\" else 1
+    key, rest = line[:i], line[i:].lstrip(PROPERTY_SPACE)
+    if rest[:1] in ("=", ":"):
+        rest = rest[1:].lstrip(PROPERTY_SPACE)
+    return key, rest
+
+
+def unescape(text):
+    """A properties key or value without its escapes."""
+    def replace(match):
+        escaped = match.group(1)
+        if escaped.startswith("u"):
+            if not UNICODE_ESCAPE.fullmatch(escaped):
+                raise ValueError(f'"\\{escaped}" is not a Unicode escape.')
+            return chr(int(escaped[1:], 16))
+        return PROPERTY_ESCAPES.get(escaped, escaped)
+
+    return ESCAPE.sub(replace, text)
+
+
+MANIFEST_READERS = {
+    "Cargo.toml": cargo_version,
+    "gradle.properties": gradle_properties_version,
+    "package.json": package_json_version,
+}
+
+
+def manifest_encoding(name):
+    """The encoding of the manifest called `name`: ISO 8859-1 for a gradle.properties, which Gradle reads as
+    java.util.Properties reads a stream, and UTF-8 for the others."""
+    return "latin-1" if name.rsplit("/", 1)[-1] == "gradle.properties" else "utf-8"
 
 
 def manifest_version(name, text):
@@ -73,8 +155,9 @@ def tier(scenario):
     return int(match.group(1)) if match else None
 
 
-def tier_problems(scenarios, proposals, capabilities, claimed):
-    """The proposals of tiers 1 to `claimed` that `proposals` does not list.
+def tier_problems(scenarios, proposals, capabilities, claimed, manifest):
+    """The proposals of tiers 1 to `claimed` missing from `proposals`, the list in the conformance manifest called
+    `manifest`.
 
     A proposal is required only when one of its scenarios applies to the language, needing no capability that
     `capabilities` leaves unclaimed.
@@ -86,7 +169,7 @@ def tier_problems(scenarios, proposals, capabilities, claimed):
         return [f"The cases hold no proposal of tiers 1 to {claimed}."]
     required = set().union(*(s.proposals() for s in in_tiers if s.applies(capabilities)))
     return [
-        f"Proposal {n:04d}, of tier {claimed} or below, is not listed in conformance.json."
+        f"Proposal {n:04d}, of tier {claimed} or below, is not listed in {manifest}."
         for n in sorted(required - set(proposals))
     ]
 

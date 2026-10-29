@@ -1,3 +1,4 @@
+import json
 import pathlib
 import tempfile
 import unittest
@@ -8,6 +9,7 @@ from lib.conformance import (
     exclusion_problems,
     exclusions_report,
     language_problems,
+    load_manifest,
     manifest_problems,
     parse_feature,
     read_scenarios,
@@ -137,6 +139,26 @@ class ManifestProblems(unittest.TestCase):
     def test_an_entry_needs_its_proof(self):
         impossible = {"non-value": [{"feature": "cases/x.feature", "scenario": "A closure"}]}
         self.assertEqual(len(manifest_problems(manifest(impossible=impossible))), 1)
+
+
+class LoadManifest(unittest.TestCase):
+    def test_a_complete_manifest_is_loaded_with_no_problem(self):
+        loaded = manifest(proposals=[2])
+        self.assertEqual(load_manifest("conformance.json", json.dumps(loaded)), (loaded, []))
+
+    def test_a_manifest_that_does_not_parse_is_refused_in_its_name(self):
+        loaded, found = load_manifest("conformance-java.json", "{")
+        self.assertIsNone(loaded)
+        self.assertRegex(found[0], "^conformance-java.json cannot be read")
+
+    def test_a_manifest_that_is_not_an_object_is_refused_in_its_name(self):
+        self.assertEqual(load_manifest("conformance.json", "[]"), (None, ["conformance.json must hold an object."]))
+
+    def test_each_problem_of_a_manifests_shape_names_the_manifest(self):
+        loaded, found = load_manifest("conformance-java.json", "{}")
+        self.assertIsNone(loaded)
+        self.assertEqual(len(found), 4)
+        self.assertTrue(all(problem.startswith("conformance-java.json: ") for problem in found))
 
 
 class ExclusionProblems(unittest.TestCase):
