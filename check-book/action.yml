@@ -5,18 +5,21 @@ description: >-
   A book directory holding a Cargo.toml is a Rust book, whose Cargo.toml is patched to take this workspace's crates.
   One holding a package.json is a TypeScript book, whose `npm run itinera` packs the checkout ITINERA_TS names,
   before `npm install`; this repository's dependencies must be installed first, since packing itinera builds it.
+  One holding a settings.gradle.kts or settings.gradle is a JVM book, whose `./gradlew itinera` publishes the checkout
+  ITINERA_J names; the JDK the build needs must be set up first.
 
 inputs:
   pin:
     description: The JSON file that pins the book, holding an object whose "commit" is a full commit SHA of the book.
     default: book.json
   book-dir:
-    description: The book's directory for this language, holding its Cargo.toml or its package.json.
+    description: >-
+      The book's directory for this language, holding its Cargo.toml, its package.json or its Gradle settings file.
     required: true
   command:
     description: >-
       The command that runs the book's examples, run in the book's directory. Defaults to `cargo test` for a Rust
-      book and `npm test` for a TypeScript one.
+      book, `npm test` for a TypeScript one and `./gradlew check` for a JVM one.
     default: ""
   book-repo:
     description: The book repository, owner/name. Defaults to the "book" repository of the same owner.
