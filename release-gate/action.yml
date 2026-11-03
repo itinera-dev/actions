@@ -1,8 +1,8 @@
 name: Release gate
 description: >-
   Fails unless the pushed tag may become a release: the tag is "v" followed by the package version, the tagged
-  commit is on the release branch, the changelog has a section for the version, and conformance.json lists every
-  proposal of the tiers claimed, except one whose every case needs a capability conformance.json does not claim.
+  commit is on the release branch, the changelog has a section for the version, and each conformance manifest lists
+  every proposal of the tiers claimed, except one whose every case needs a capability that manifest does not claim.
   For an npm package, package-lock.json at the repository's root must also record the version, and the dist-tag in
   publishConfig.tag must suit it: "next" for a pre-release, none or "latest" otherwise.
 
@@ -10,13 +10,19 @@ inputs:
   manifest:
     description: >-
       The package manifest declaring the version, relative to the repository's root: a Cargo.toml, workspace or
-      package, or an npm package's package.json, such as packages/itinera/package.json.
+      package, an npm package's package.json, such as packages/itinera/package.json, or a Gradle build's
+      gradle.properties, whose "version" every project of the build takes.
     required: true
   tier:
     description: >-
-      The tier claimed; every proposal of tiers 1 to this one, at the pinned cases, must be listed, unless every case
-      of it needs a capability conformance.json does not claim.
+      The tier claimed; every proposal of tiers 1 to this one, at the pinned cases, must be listed in each
+      conformance manifest, unless every case of it needs a capability that manifest does not claim.
     required: true
+  conformance:
+    description: >-
+      The conformance manifests, relative to the repository's root and separated by white space. A repository
+      holding several languages names each language's manifest, such as "conformance.json conformance-java.json".
+    default: conformance.json
   changelog:
     description: The changelog, holding a section for the version under a heading such as "## [0.1.0]".
     default: CHANGELOG.md
@@ -38,6 +44,7 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
         MANIFEST: ${{ inputs.manifest }}
         TIER: ${{ inputs.tier }}
+        CONFORMANCE: ${{ inputs.conformance }}
         CHANGELOG: ${{ inputs.changelog }}
         BRANCH: ${{ inputs.branch }}
         CONFORMANCE_REPO: ${{ inputs.conformance-repo }}

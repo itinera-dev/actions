@@ -12,7 +12,7 @@ from lib.conformance import (
     exclusion_problems,
     exclusions_report,
     language_problems,
-    manifest_problems,
+    load_manifest,
     read_scenarios,
     report_names,
     tag_expression,
@@ -44,13 +44,11 @@ def main():
         output.write(f"artifact={names.artifact}\ncucumber={names.cucumber}\nexclusions={names.exclusions}\n")
 
     try:
-        manifest = json.loads(pathlib.Path(manifest_path).read_text(encoding="utf-8"))
+        text = pathlib.Path(manifest_path).read_text(encoding="utf-8")
     except (OSError, ValueError) as error:
         fail([f"{manifest_path} cannot be read: {error}"])
-    if not isinstance(manifest, dict):
-        fail([f"{manifest_path} must hold an object."])
-    found = manifest_problems(manifest)
-    if found:
+    manifest, found = load_manifest(manifest_path, text)
+    if manifest is None:
         fail(found)
 
     work = tempfile.mkdtemp(dir=env.get("RUNNER_TEMP"))
