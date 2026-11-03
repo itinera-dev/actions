@@ -10,6 +10,25 @@ from lib.cargo import publishable_members
 
 COMMIT = re.compile(r"[0-9a-f]{40}")
 DEPENDENCY_TABLES = ("dependencies", "dev-dependencies", "build-dependencies")
+KINDS = (
+    ("cargo", ("Cargo.toml",), "cargo test"),
+    ("npm", ("package.json",), "npm test"),
+    ("gradle", ("settings.gradle.kts", "settings.gradle"), "./gradlew check"),
+)
+
+
+def book_kind(directory):
+    """How the book in `directory`, a path, is built: "cargo", "npm" or "gradle", from the first of a Cargo.toml, a
+    package.json or a Gradle settings file that it holds, or None when it holds none of them."""
+    return next(
+        (kind for kind, files, _ in KINDS if any((pathlib.Path(directory) / name).is_file() for name in files)),
+        None,
+    )
+
+
+def default_command(kind):
+    """The command that runs the examples of a book of `kind`, when the workflow names none."""
+    return next(command for name, _, command in KINDS if name == kind)
 
 
 def pinned_commit(pin):

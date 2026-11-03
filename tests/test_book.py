@@ -1,7 +1,11 @@
+import pathlib
+import tempfile
 import tomllib
 import unittest
 
 from lib.book import (
+    book_kind,
+    default_command,
     dependency_sources,
     locked_packages,
     patch_section,
@@ -48,6 +52,44 @@ class PinnedCommit(unittest.TestCase):
         for pin in ({"commit": "c99accf"}, {"commit": "main"}, {"tag": COMMIT}, [COMMIT], {"commit": COMMIT.upper()}):
             with self.subTest(pin=pin), self.assertRaisesRegex(ValueError, "full 40-character commit SHA"):
                 pinned_commit(pin)
+
+
+class BookKind(unittest.TestCase):
+    def kind_of(self, *files):
+        with tempfile.TemporaryDirectory() as directory:
+            for name in files:
+                (pathlib.Path(directory) / name).write_text("", encoding="utf-8")
+            return book_kind(directory)
+
+    def test_a_book_is_known_by_the_file_its_build_reads(self):
+        cases = {
+            "Cargo.toml": "cargo",
+            "package.json": "npm",
+            "settings.gradle.kts": "gradle",
+            "settings.gradle": "gradle",
+        }
+        for name, kind in cases.items():
+            with self.subTest(name=name):
+                self.assertEqual(self.kind_of(name), kind)
+
+    def test_a_cargo_manifest_wins_over_a_package_json(self):
+        self.assertEqual(self.kind_of("package.json", "Cargo.toml"), "cargo")
+
+    def test_a_directory_holding_none_of_them_is_no_book(self):
+        self.assertIsNone(self.kind_of("build.gradle.kts", "README.md"))
+
+    def test_a_directory_named_like_the_file_is_not_taken_for_it(self):
+        with tempfile.TemporaryDirectory() as directory:
+            (pathlib.Path(directory) / "Cargo.toml").mkdir()
+            self.assertIsNone(book_kind(directory))
+
+
+class DefaultCommand(unittest.TestCase):
+    def test_each_kind_of_book_runs_its_examples_with_its_own_tool(self):
+        cases = {"cargo": "cargo test", "npm": "npm test", "gradle": "./gradlew check"}
+        for kind, command in cases.items():
+            with self.subTest(kind=kind):
+                self.assertEqual(default_command(kind), command)
 
 
 class PublishablePackages(unittest.TestCase):

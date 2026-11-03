@@ -10,7 +10,15 @@ import tempfile
 import tomllib
 from typing import NoReturn
 
-from lib.book import locked_packages, patched_manifest, pinned_commit, publishable_packages, unpatched_packages
+from lib.book import (
+    book_kind,
+    default_command,
+    locked_packages,
+    patched_manifest,
+    pinned_commit,
+    publishable_packages,
+    unpatched_packages,
+)
 from lib.github_api import GitHub, GitHubError
 
 
@@ -35,14 +43,17 @@ def main():
         fail(f"The book at {book_repo}@{commit} cannot be downloaded: {error}")
     book = root / env["BOOK_DIR"]
     run_env = {name: value for name, value in env.items() if name != "GH_TOKEN"}
-    if (book / "Cargo.toml").is_file():
-        command = shlex.split(env["COMMAND"] or "cargo test")
-        run_cargo_book(book, env["BOOK_DIR"], f"{book_repo}@{commit}", command, run_env)
-    elif (book / "package.json").is_file():
-        command = shlex.split(env["COMMAND"] or "npm test")
-        run_npm_book(book, env["BOOK_DIR"], f"{book_repo}@{commit}", command, run_env)
+    pinned = f"{book_repo}@{commit}"
+    kind = book_kind(book)
+    if kind is None:
+        fail(f"The book at {pinned} has no Cargo.toml, package.json or Gradle settings file in {env['BOOK_DIR']}.")
+    command = shlex.split(env["COMMAND"] or default_command(kind))
+    if kind == "cargo":
+        run_cargo_book(book, env["BOOK_DIR"], pinned, command, run_env)
+    elif kind == "npm":
+        run_npm_book(book, env["BOOK_DIR"], pinned, command, run_env)
     else:
-        fail(f"The book at {book_repo}@{commit} has neither a Cargo.toml nor a package.json in {env['BOOK_DIR']}.")
+        run_gradle_book(book, env["BOOK_DIR"], pinned, command, run_env)
 
 
 def run_cargo_book(book, book_dir, pinned, command, cargo_env):
@@ -86,10 +97,25 @@ def run_npm_book(book, book_dir, pinned, command, npm_env):
     lockfile.
     """
     print(f"Running the book {pinned} against {os.getcwd()} as it stands.", flush=True)
-    npm_env = npm_env | {"ITINERA_TS": os.getcwd()}
-    for step in (["npm", "run", "itinera"], ["npm", "install", "--no-audit", "--no-fund"], command):
+    steps = (["npm", "run", "itinera"], ["npm", "install", "--no-audit", "--no-fund"], command)
+    run_steps(book, book_dir, steps, npm_env | {"ITINERA_TS": os.getcwd()})
+
+
+def run_gradle_book(book, book_dir, pinned, command, gradle_env):
+    """Run `command` in the JVM book at `book`, against this repository's itinera as it stands.
+
+    The book's `./gradlew itinera` publishes the checkout ITINERA_J names, instead of the commit the book pins, into
+    the repository the book's build reads itinera from.
+    """
+    print(f"Running the book {pinned} against {os.getcwd()} as it stands.", flush=True)
+    run_steps(book, book_dir, (["./gradlew", "itinera"], command), gradle_env | {"ITINERA_J": os.getcwd()})
+
+
+def run_steps(book, book_dir, steps, step_env):
+    """Run each command of `steps` in the book at `book`, failing at the first that cannot run or fails."""
+    for step in steps:
         try:
-            returncode = subprocess.run(step, cwd=book, env=npm_env).returncode
+            returncode = subprocess.run(step, cwd=book, env=step_env).returncode
         except OSError as error:
             fail(f"{shlex.join(step)} cannot be run in the book's {book_dir}: {error}")
         if returncode != 0:
