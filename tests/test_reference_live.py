@@ -1,39 +1,18 @@
-import http.client
 import unittest
-import urllib.error
-from unittest import mock
 
+from lib.live import INTERVAL_SECONDS, PageError
 from lib.reference_live import (
-    INTERVAL_SECONDS,
-    PageError,
-    fetch_page,
     live_pages,
     names_version,
     not_live,
     root_of,
     wait_until_live,
 )
-from lib.registry import TIMEOUT_SECONDS, USER_AGENT
-from tests.registry_answers import Answer, failing
+from tests.clock import Clock
 
 
 def page(title):
     return f"<!DOCTYPE html><html><head><meta charset='utf-8'><title>{title}</title></head><body></body></html>"
-
-
-class Clock:
-    """A clock that only moves when the code under test sleeps."""
-
-    def __init__(self):
-        self.now = 1000.0
-        self.slept = []
-
-    def __call__(self):
-        return self.now
-
-    def sleep(self, seconds):
-        self.slept.append(seconds)
-        self.now += seconds
 
 
 class NamesVersion(unittest.TestCase):
@@ -82,35 +61,6 @@ class LivePages(unittest.TestCase):
     def test_the_root_and_the_release_front_page_are_checked(self):
         expected = ["https://example.org/ref/", "https://example.org/ref/0.1.0/"]
         self.assertEqual(live_pages("https://example.org/ref/", "0.1.0"), expected)
-
-
-class FetchPage(unittest.TestCase):
-    def test_the_page_is_read_as_text(self):
-        with mock.patch("urllib.request.urlopen", return_value=Answer(page("v0.1.0").encode())):
-            self.assertEqual(fetch_page("https://example.org/"), page("v0.1.0"))
-
-    def test_the_request_asks_for_a_fresh_copy_and_names_the_project(self):
-        with mock.patch("urllib.request.urlopen", return_value=Answer(b"")) as urlopen:
-            fetch_page("https://example.org/")
-        request = urlopen.call_args.args[0]
-        self.assertEqual(request.get_header("Cache-control"), "no-cache")
-        self.assertEqual(request.get_header("User-agent"), USER_AGENT)
-        self.assertEqual(urlopen.call_args.kwargs["timeout"], TIMEOUT_SECONDS)
-
-    def test_a_failed_answer_is_an_error(self):
-        with failing(404), self.assertRaisesRegex(PageError, "answered 404"):
-            fetch_page("https://example.org/")
-
-    def test_a_site_that_cannot_be_reached_is_an_error(self):
-        with mock.patch("urllib.request.urlopen", side_effect=urllib.error.URLError("no route")):
-            with self.assertRaisesRegex(PageError, "cannot be reached: no route"):
-                fetch_page("https://example.org/")
-
-    def test_an_answer_cut_short_or_late_is_an_error(self):
-        for error in (http.client.IncompleteRead(b"<"), TimeoutError("timed out")):
-            with self.subTest(error=error), mock.patch("urllib.request.urlopen", side_effect=error):
-                with self.assertRaisesRegex(PageError, "cannot be read"):
-                    fetch_page("https://example.org/")
 
 
 class NotLive(unittest.TestCase):

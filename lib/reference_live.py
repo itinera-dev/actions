@@ -2,20 +2,12 @@
 them, name the newest release in their title."""
 
 import html
-import http.client
 import re
-import urllib.error
 import urllib.parse
-import urllib.request
 
-from lib.registry import TIMEOUT_SECONDS, USER_AGENT
+from lib.live import PageError, wait_until
 
-INTERVAL_SECONDS = 20
 TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.IGNORECASE | re.DOTALL)
-
-
-class PageError(Exception):
-    pass
 
 
 def names_version(page, version):
@@ -42,23 +34,6 @@ def live_pages(root, version):
     return [root, f"{root}{version}/"]
 
 
-def fetch_page(url):
-    """The page at `url`, asking every cache on the way for a fresh copy.
-
-    Raises PageError when it cannot be read.
-    """
-    request = urllib.request.Request(url, headers={"Cache-Control": "no-cache", "User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=TIMEOUT_SECONDS) as response:
-            return response.read().decode("utf-8", errors="replace")
-    except urllib.error.HTTPError as error:
-        raise PageError(f"answered {error.code}") from error
-    except urllib.error.URLError as error:
-        raise PageError(f"cannot be reached: {error.reason}") from error
-    except (OSError, http.client.HTTPException) as error:
-        raise PageError(f"cannot be read: {error!r}") from error
-
-
 def not_live(pages, version, fetch, nonce):
     """Why each of `pages` is not live yet, as `fetch` reads it with `nonce` in its query, so that no cache answers
     with a copy it kept: it cannot be read, or its title does not name `version`."""
@@ -77,11 +52,4 @@ def not_live(pages, version, fetch, nonce):
 def wait_until_live(pages, version, fetch, sleep, clock, timeout, nonce):
     """Reads `pages` every INTERVAL_SECONDS until they are live or `timeout` seconds have passed, as `clock` counts
     them, and returns why they are not live at the last reading, or an empty list once they are."""
-    deadline = clock() + timeout
-    attempt = 1
-    while True:
-        problems = not_live(pages, version, fetch, f"{nonce}-{attempt}")
-        if not problems or clock() + INTERVAL_SECONDS > deadline:
-            return problems
-        sleep(INTERVAL_SECONDS)
-        attempt += 1
+    return wait_until(lambda attempt: not_live(pages, version, fetch, attempt), sleep, clock, timeout, nonce)
