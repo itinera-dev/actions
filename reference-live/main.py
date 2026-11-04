@@ -6,8 +6,9 @@ import time
 from typing import NoReturn
 
 from lib.github_api import GitHub, GitHubError
+from lib.live import fetch_page
 from lib.reference import editions
-from lib.reference_live import fetch_page, live_pages, root_of, wait_until_live
+from lib.reference_live import live_pages, root_of, wait_until_live
 
 STALE_DEPLOYMENT = (
     "GitHub Pages keeps serving its previous deployment when a run deploys a commit it has already deployed from a"

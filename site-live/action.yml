@@ -1,0 +1,28 @@
+name: Site live
+description: >-
+  Checks that a site deployed to GitHub Pages is live: one file of it, which the build writes afresh for each
+  deployment, read with a fresh copy from every cache, holds what that build wrote. It reads the file again every 20
+  seconds until the timeout, then fails, since GitHub Pages can report a deployment as successful and keep serving
+  the previous one.
+
+inputs:
+  url:
+    description: The address of the file as the site serves it, such as the page_url output of actions/deploy-pages followed by its path.
+    required: true
+  expected:
+    description: A local copy of the file as the deployed build wrote it, such as one downloaded from an artifact of the job that built the site.
+    required: true
+  timeout:
+    description: How many seconds to wait for the site to be live before failing.
+    default: "600"
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        URL: ${{ inputs.url }}
+        EXPECTED: ${{ inputs.expected }}
+        TIMEOUT: ${{ inputs.timeout }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
