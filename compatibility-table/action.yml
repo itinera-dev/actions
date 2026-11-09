@@ -1,0 +1,30 @@
+name: Compatibility table
+description: >-
+  Builds the compatibility table: for every release of every repository listed, the cases version, the tier and
+  capabilities claimed, and the scenarios of its conformance report passed, excluded with proof, not run and failed or
+  missing, overall and by proposal. It writes a summary page, a page for each row and table.json into a directory
+  ready to publish to GitHub Pages.
+
+inputs:
+  repositories:
+    description: >-
+      A JSON file listing the repositories of the implementations, as {"repositories": ["itinera-dev/itinera-rs"]}.
+      Each repository names its own languages, by its manifests and reports.
+    default: implementations.json
+  output:
+    description: The directory the pages are written to, created when missing.
+    default: _site
+  token:
+    description: A token that can read the repositories' releases and contents.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        REPOSITORIES: ${{ inputs.repositories }}
+        OUTPUT: ${{ inputs.output }}
+        GH_TOKEN: ${{ inputs.token }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
