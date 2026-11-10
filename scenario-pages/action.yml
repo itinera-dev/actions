@@ -1,0 +1,39 @@
+name: Scenario pages
+description: >-
+  Writes the conformance cases as plain HTML pages, ready for GitHub Pages: a set for every tag of the conformance
+  repository and one for its default branch, each with a page per feature file, an anchor per scenario, and indexes
+  by tier, proposal and tag (conformance FORMAT.md, "The scenario pages").
+
+inputs:
+  site-dir:
+    description: >-
+      The directory the site is written to. The pages go under its cases/ directory; an index.html is written at
+      its root unless one is already there, such as the compatibility table's.
+    default: site/
+  conformance-repo:
+    description: The conformance repository, owner/name. Defaults to the repository the workflow runs in.
+    default: ""
+  token:
+    description: Token that can read the conformance repository.
+    default: ${{ github.token }}
+
+outputs:
+  build-file:
+    description: >-
+      The path, below the site directory, of a file this build writes afresh, for the site-live check:
+      cases/build.txt.
+    value: ${{ steps.pages.outputs.build-file }}
+
+runs:
+  using: composite
+  steps:
+    - id: pages
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        SITE_DIR: ${{ inputs.site-dir }}
+        CONFORMANCE_REPO: ${{ inputs.conformance-repo }}
+        REPO: ${{ github.repository }}
+        RUN: ${{ github.run_id }}.${{ github.run_attempt }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
