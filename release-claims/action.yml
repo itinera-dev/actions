@@ -1,0 +1,70 @@
+name: Release claims
+description: >-
+  Checks the releases section of a language's manifest, where published releases claim patches of the
+  specification: for each release, it builds the library at the release tag with the conformance runner from main,
+  runs the cases at every conformance tag claimed, fails unless all of them pass, and uploads a report for each.
+
+inputs:
+  library:
+    description: >-
+      The paths, separated by spaces or new lines, that make up the library: they are taken from the release tag,
+      and everything else, the runner and the build, from main. For example
+      "crates/itinera crates/itinera-core crates/itinera-macros".
+    required: true
+  command:
+    description: >-
+      The command that builds and starts the language's runner, run at the root of the combined repository. It
+      receives ITINERA_CONFORMANCE_CASES, ITINERA_CONFORMANCE_TAGS and ITINERA_CONFORMANCE_REPORT, as for
+      run-conformance, once for each conformance tag claimed.
+    required: true
+  manifest:
+    description: The language's manifest, holding the releases section, such as conformance-java.json.
+    default: conformance.json
+  language:
+    description: >-
+      The language, in lower case, for a repository holding several. Its name goes into the report's files and
+      artifact, as for run-conformance: claims-java.json in release-claims-java.
+    default: ""
+  runner-ref:
+    description: The branch the runner is taken from. Defaults to the repository's default branch.
+    default: ""
+  report-dir:
+    description: >-
+      The directory the report is written to: claims.json, and for each release and conformance tag a directory
+      such as v0.1.0/v0.1.1 holding its Cucumber JSON and exclusions file.
+    default: release-claims/
+  conformance-repo:
+    description: The conformance repository, owner/name. Defaults to the "conformance" repository of the same owner.
+    default: ""
+  token:
+    description: Token that can read this repository, its tags, and the conformance repository.
+    default: ${{ github.token }}
+
+runs:
+  using: composite
+  steps:
+    - id: run
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        LIBRARY: ${{ inputs.library }}
+        COMMAND: ${{ inputs.command }}
+        MANIFEST: ${{ inputs.manifest }}
+        LANGUAGE: ${{ inputs.language }}
+        RUNNER_REF: ${{ inputs.runner-ref }}
+        REPORT_DIR: ${{ inputs.report-dir }}
+        CONFORMANCE_REPO: ${{ inputs.conformance-repo }}
+        REPO: ${{ github.repository }}
+        PYTHONPATH: ${{ github.action_path }}/..
+      run: python3 "$GITHUB_ACTION_PATH/main.py"
+    # Nothing is uploaded when the run checked nothing. Only this language's files are uploaded, so languages
+    # sharing a report directory keep their artifacts apart.
+    - if: always() && steps.run.outputs.artifact != ''
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: ${{ steps.run.outputs.artifact }}
+        path: |
+          ${{ inputs.report-dir }}/${{ steps.run.outputs.claims }}
+          ${{ inputs.report-dir }}/*/*/${{ steps.run.outputs.cucumber }}
+          ${{ inputs.report-dir }}/*/*/${{ steps.run.outputs.exclusions }}
+        if-no-files-found: ignore
